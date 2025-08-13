@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import OpenAI from 'openai'
 import Anthropic from '@anthropic-ai/sdk'
+import { parse as parseCsv } from 'csv-parse/sync'
 
 const app = express()
 const PORT = process.env.PORT || 8787
@@ -25,19 +26,39 @@ try {
   console.log(`[api] No knowledge file at ${knowledgePath}. Proceeding without it.`)
 }
 
+// Load optional knowledge CSV
+const knowledgeCsvPath = process.env.KNOWLEDGE_CSV_PATH || path.join(process.cwd(), 'data', 'knowledge.csv')
+let knowledgeCsvSnippet = null
+try {
+  const rawCsv = await readFile(knowledgeCsvPath, 'utf8')
+  const rows = parseCsv(rawCsv, { columns: true, skip_empty_lines: true })
+  // Keep a safe, compact snippet
+  knowledgeCsvSnippet = JSON.stringify(rows).slice(0, 8000)
+  // eslint-disable-next-line no-console
+  console.log(`[api] Loaded knowledge CSV from ${knowledgeCsvPath} (${Array.isArray(rows) ? rows.length : 0} rows)`) 
+} catch (err) {
+  // eslint-disable-next-line no-console
+  console.log(`[api] No knowledge CSV at ${knowledgeCsvPath}. Proceeding without it.`)
+}
+
 function buildSystemPrompt() {
   const base = `You are a careful, factual medical assistant. Provide balanced, safe guidance.
 - Be concise and structured with bullet points.
 - Include red-flag symptoms and when to seek urgent care.
 - Add a brief disclaimer that this is not medical advice.
 - If unsure, ask for missing details (duration, severity, triggers, relevant history).`
-  if (!knowledge) return base
-  // Shallow include of knowledge keys. If large, you may implement retrieval later.
-  const knowledgeSnippet = typeof knowledge === 'string' ? knowledge : JSON.stringify(knowledge).slice(0, 8000)
-  return `${base}
 
-Relevant knowledge JSON (use only if helpful; do not leak raw JSON):
-${knowledgeSnippet}`
+  const snippets = []
+  if (knowledge) {
+    const jsonSnippet = typeof knowledge === 'string' ? knowledge : JSON.stringify(knowledge)
+    snippets.push(`JSON knowledge (use if helpful; do not leak raw JSON):\n${jsonSnippet.slice(0, 8000)}`)
+  }
+  if (knowledgeCsvSnippet) {
+    snippets.push(`CSV knowledge (parsed; use if helpful; do not leak raw rows):\n${knowledgeCsvSnippet}`)
+  }
+
+  if (snippets.length === 0) return base
+  return `${base}\n\n${snippets.join('\n\n')}`
 }
 
 function normalizeMessages(messages) {
