@@ -95,6 +95,8 @@ export default function App() {
   ])
   const [input, setInput] = useState('')
   const [isThinking, setIsThinking] = useState(false)
+  const [useLlm, setUseLlm] = useState(false)
+  const [provider, setProvider] = useState<'openai' | 'anthropic'>('openai')
   const scrollRef = useRef<HTMLDivElement | null>(null)
 
   const canSend = useMemo(() => input.trim().length > 0 && !isThinking, [input, isThinking])
@@ -111,12 +113,27 @@ export default function App() {
     setMessages(prev => [...prev, userMsg])
     setIsThinking(true)
 
-    await new Promise(r => setTimeout(r, 300))
-    const answer = getDiagnosisResponse(text)
+    try {
+      let answer: string
+      if (useLlm) {
+        const { chatWithLlm } = await import('./lib/llm')
+        answer = await chatWithLlm({
+          provider,
+          messages: [...messages, userMsg].map(m => ({ role: m.role, text: m.text })),
+        })
+      } else {
+        await new Promise(r => setTimeout(r, 300))
+        answer = getDiagnosisResponse(text)
+      }
 
-    const botMsg: ChatMessage = { id: generateId(), role: 'assistant', text: answer }
-    setMessages(prev => [...prev, botMsg])
-    setIsThinking(false)
+      const botMsg: ChatMessage = { id: generateId(), role: 'assistant', text: answer }
+      setMessages(prev => [...prev, botMsg])
+    } catch (err) {
+      const botMsg: ChatMessage = { id: generateId(), role: 'assistant', text: 'দুঃখিত, সার্ভার সাড়া দিচ্ছে না। পরে আবার চেষ্টা করুন।' }
+      setMessages(prev => [...prev, botMsg])
+    } finally {
+      setIsThinking(false)
+    }
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -140,7 +157,21 @@ export default function App() {
       <header className="border-b border-border">
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="text-xl font-semibold">Health Aid Companion</h1>
-          <span className="text-xs text-muted-foreground">ডেমো • অফলাইন রুল-বেইজড</span>
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <label className="inline-flex items-center gap-1 cursor-pointer select-none">
+              <input type="checkbox" checked={useLlm} onChange={(e) => setUseLlm(e.target.checked)} />
+              LLM
+            </label>
+            <select
+              disabled={!useLlm}
+              value={provider}
+              onChange={(e) => setProvider(e.target.value as 'openai' | 'anthropic')}
+              className="border border-border rounded px-2 py-1 bg-background disabled:opacity-50"
+            >
+              <option value="openai">OpenAI</option>
+              <option value="anthropic">Claude</option>
+            </select>
+          </div>
         </div>
       </header>
 

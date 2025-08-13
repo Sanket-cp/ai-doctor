@@ -1,0 +1,12 @@
+{
+  "fever": {
+    "causes": ["viral infection", "bacterial infection", "inflammation"],
+    "care": ["oral rehydration", "rest", "paracetamol per dose"],
+    "red_flags": ["> 3 days high fever", "> 102°F", "seizures", "severe dehydration"]
+  },
+  "cough": {
+    "causes": ["common cold", "flu", "allergy", "asthma"],
+    "care": ["warm fluids", "steam inhalation", "avoid irritants"],
+    "red_flags": ["shortness of breath", "blood in sputum", "chest pain"]
+  }
+}
