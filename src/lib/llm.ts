@@ -8,7 +8,9 @@ export interface LlmRequestBody {
 }
 
 export async function chatWithLlm(body: LlmRequestBody): Promise<string> {
-  const res = await fetch('/api/chat', {
+  const base = (import.meta as any).env?.VITE_API_BASE_URL || ''
+  const url = base ? `${base.replace(/\/$/, '')}/api/chat` : '/api/chat'
+  const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),

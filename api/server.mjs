@@ -70,6 +70,10 @@ app.get('/health', (_req, res) => {
   res.json({ ok: true })
 })
 
+app.get('/api/health', (_req, res) => {
+  res.json({ ok: true })
+})
+
 app.post('/api/chat', async (req, res) => {
   try {
     const { messages = [], provider = 'openai', model, temperature = 0.3 } = req.body || {}
